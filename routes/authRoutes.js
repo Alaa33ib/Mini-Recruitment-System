@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import {body, validationRoutes} from "express-validator";
+import {body, validationResult} from "express-validator";
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ router.post('/register', [body('username').trim().notEmpty().withMessage("Userna
     body('email').isEmail().withMessage("Please provide a valid email address"),
     body('password').isLength({min: 6}).withMessage('Password must be at least 6 characters long.')
 ], async (req, res, next)=>{
-    const errors = validationRoutes(req);
+    const errors = validationResult(req);
     if (!errors.isEmpty()){
         const error = new Error(errors.array().map(err => err.msg).join(', '));
         error.statusCode = 400;
