@@ -3,6 +3,7 @@ import Application from "../models/Application.js";
 import { authorizeRoles, verifyToken } from "../middleware/auth.js";
 import mongoose from "mongoose";
 import Job from "../models/Job.js";
+import { cacheResponse } from "../middleware/caching.js";
 
 const router = express.Router();
 
@@ -39,13 +40,13 @@ router.post('/', verifyToken, authorizeRoles("applicant"), async (req, res, next
     }
 })
 
-router.get('/', verifyToken, authorizeRoles("recruiter"), async (req,res,next)=>{
+router.get('/', verifyToken, cacheResponse(60), authorizeRoles("recruiter"), async (req,res,next)=>{
     try{
         const applications  = await Application.find().populate("candidateId", "username email education").populate("jobId", "title department");
         res.status(200).json({
             success: true,
             count: applications.length,
-            applications
+            data: applications
         });
     } catch(error){
         next(error);

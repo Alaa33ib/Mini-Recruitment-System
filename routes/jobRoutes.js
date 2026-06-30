@@ -1,6 +1,7 @@
 import express from "express";
 import Job from "../models/Job.js";
 import { verifyToken, authorizeRoles } from "../middleware/auth.js";
+import { cacheResponse } from "../middleware/caching.js";
 
 const router = express.Router();
 
@@ -26,14 +27,14 @@ router.post('/', verifyToken, authorizeRoles('recruiter'), async (req, res, next
     }
 });
 
-router.get('/', verifyToken, async (req, res, next)=>{
+router.get('/', verifyToken, cacheResponse(300), async (req, res, next)=>{
     try{
         const jobs = await Job.find({status: 'open'}).populate("postedBy", "username company");
 
         res.status(200).json({
             success: true,
             count: jobs.length,
-            jobs
+            data: jobs
         });
     } catch(error){
         next(error);

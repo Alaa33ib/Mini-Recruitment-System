@@ -1,13 +1,10 @@
+import "dotenv/config";
 import express from "express";
-import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import applicationRoutes from "./routes/applicationRoutes.js";
-
-dotenv.config();
-
-connectDB();
+import { connectRedis } from "./config/redis.js";
 
 const app = express();
 
@@ -26,4 +23,19 @@ app.use((error, req, res, next)=>{
 });
 
 const PORT  = process.env.PORT || 3000;
-app.listen( PORT, ()=> console.log(`System running on http://localhost:${PORT}`));
+
+const startServer = async () => {
+    try {
+        await connectDB();
+        await connectRedis();
+
+        app.listen( PORT, ()=> console.log(`System running on http://localhost:${PORT}`));
+
+    } catch {
+        console.error("Critical server startup failure:", error);
+        process.exit(1);
+    }
+};
+
+startServer();
+
