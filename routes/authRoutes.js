@@ -3,10 +3,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import {body, validationResult} from "express-validator";
+import { redisClient } from "../config/redis.js";
+import { verifyToken } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post('/register', [body('username').trim().notEmpty().withMessage("Username is required."), 
+router.post('/register', [
+    body('username').trim().notEmpty().withMessage("Username is required."), 
     body('email').isEmail().withMessage("Please provide a valid email address"),
     body('password').isLength({min: 6}).withMessage('Password must be at least 6 characters long.')
 ], async (req, res, next)=>{
@@ -66,12 +69,20 @@ router.post('/login', async (req, res, next)=>{
             return next(error);
         }
 
+        const sessionPayload = { id: userFound._id.toString(), role: userFound.role};
+
         const token = jwt.sign(
-            { id: userFound._id, role: userFound.role },
+            sessionPayload,
             process.env.JWT_SECRET,
             {expiresIn: '24h'}
         );
 
+        const sessionKey = `session:${userFound._id}`;
+        await redisClient.set(sessionKey, JSON.stringify(sessionPayload), {EX: 86400
+            }).catch(err=> console.error("login session caching error:",err));
+
+        console.log(`Active session pre-warmed for user [${userFound._id}]`);
+        
         res.status(200).json({
             success: true,
             message: `successfully logged in and authenticated`,
@@ -83,6 +94,24 @@ router.post('/login', async (req, res, next)=>{
     }
 
    
+});
+
+
+router.post('/logout', verifyToken, async (req, res, next)=>{
+    try{
+        const sessionKey=`session:${req.user.id}`;
+
+        await redisClient.del(sessionKey);
+        console.log('Successfully logged out.')
+
+        res.status(200).json({
+            success: true,
+            message: "Successfully logged out. Session destroyed."
+        });
+
+    } catch(error){
+        next(error);
+    }
 });
 
 export default router;

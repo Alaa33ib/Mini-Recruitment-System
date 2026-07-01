@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken";
-
+import { redisClient } from "../config/redis.js";
 
 // Middleware that verifies tokens attached to the request's headder from the client
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
 
     try{
         //get the headder to check authorization
@@ -15,10 +15,35 @@ export const verifyToken = (req, res, next) => {
         }
         //extract the token from the headder authorization string
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify( token, process.env.JWT_SECRET);
-        req.user = decoded;
+
+        const decoded = jwt.decode(token);
+        if (!decoded || !decoded.id){
+            const error = new  Error("Invalid token format");
+            error.statusCode = 403;
+            return next(error);
+        }
+
+        const sessionKey = `session:${decoded.id}`;
+
+        const cachedSession = await redisClient.get(sessionKey);
+
+        if(cachedSession){
+            console.log(`Session cache hit for user [${decoded.id}]! Skipping token validation... `)
+            req.user = JSON.parse(cachedSession);
+            return next();
+        }
+
+        console.log(`Session cache missed for user [${decoded.id}]! verifying token...`);
+
+        const verifiedJwt = jwt.verify(token, process.env.JWT_SECRET);
+        
+        req.user = verifiedJwt;
+
+        await redisClient.set(sessionKey, JSON.stringify(verifiedJwt), {EX: 86400
+            }).catch(err=> console.error("Session cache saving eorror:", err));
 
         next();
+
     }  catch(err){
         const error = new Error("Invalid or expired token.");
         error.statusCode = 403;
