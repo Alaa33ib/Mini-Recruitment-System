@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import applicationRoutes from "./routes/applicationRoutes.js";
 import { connectRedis } from "./config/redis.js";
+import "./workers/emailWorker.js";
 
 const app = express();
 
@@ -31,7 +32,7 @@ const startServer = async () => {
 
         app.listen( PORT, ()=> console.log(`System running on http://localhost:${PORT}`));
 
-    } catch {
+    } catch(error) {
         console.error("Critical server startup failure:", error);
         process.exit(1);
     }

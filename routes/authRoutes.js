@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import {body, validationResult} from "express-validator";
 import { redisClient } from "../config/redis.js";
 import { verifyToken } from "../middleware/auth.js";
+import { queueEmail } from "../queues/emailQ.js";
 
 const router = express.Router();
 
@@ -40,6 +41,12 @@ router.post('/register', [
 
         const response = newUser.toObject();
         delete response.password;
+
+        queueEmail(
+            email,
+            "Welcome to The Platform!",
+            `Hello ${username}! Your registration was successful (this is the confirmation email)`
+        )
 
         res.status(201).json({
             success: true,
